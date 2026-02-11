@@ -1,0 +1,196 @@
+﻿@model GoldTrackerWeb.Models.UserSessionData
+@{
+    ViewData["Title"] = "المحفظة";
+}
+
+<style>
+    .card-summary {
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .table th {
+        font-size: 0.9rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table td {
+        text-align: center;
+        vertical-align: middle;
+        font-weight: 500;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="text-primary fw-bold">📊 محفظة الذهب (Gold Portfolio Manager)</h3>
+    <div>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModal">➕ شراء جديد</button>
+        <button class="btn btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#sellModal">💰 بيع ذهب</button>
+        <a asp-action="ExportCsv" class="btn btn-secondary">💾 حفظ CSV</a>
+        <a asp-action="Index" class="btn btn-outline-danger">❌ خروج</a>
+    </div>
+</div>
+
+<div class="row text-center mb-4 g-3">
+    <div class="col-md-3">
+        <div class="card card-summary shadow-sm border-primary">
+            <h6 class="text-muted">صافي الربح الكلي (Net Profit)</h6>
+            <h3 dir="ltr" class="@(Model.TotalNetProfit >= 0 ? "text-success" : "text-danger") fw-bold">
+                @Model.TotalNetProfit.ToString("N0")
+            </h3>
+            <small class="text-muted">(المحقق + غير المحقق)</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-summary shadow-sm">
+            <h6 class="text-muted">الربح المحقق (Realized Cash)</h6>
+            <h4 dir="ltr" class="@(Model.RealizedProfit >= 0 ? "text-success" : "text-danger")">
+                @Model.RealizedProfit.ToString("N0")
+            </h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-summary shadow-sm bg-light">
+            <h6 class="text-muted">إجمالي الوزن المملوك</h6>
+            <h4 class="text-dark">@Model.TotalOwnedGrams g</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-summary shadow-sm bg-light">
+            <h6 class="text-muted">قيمة المحفظة الحالية</h6>
+            <h4 class="text-primary">@Model.CurrentPortfolioValue.ToString("N0")</h4>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between">
+        <span>CURRENT HOLDINGS (Effective)</span>
+        <span>الأسعار: 24K (@Model.Price24.ToString("N0")) | 21K (@Model.Price21.ToString("N0"))</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered mb-0">
+            <thead class="table-secondary">
+                <tr>
+                    <th>ID</th>
+                    <th>العيار<br>(Type)</th>
+                    <th>الوزن المتبقي<br>(Grams)</th>
+                    <th>التكلفة الفعلية<br>(Orig. Cost)</th>
+                    <th>القيمة الحالية<br>(Cur. Value)</th>
+                    <th>الربح غير المحقق<br>(Unrealized P/L)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Transactions.OrderBy(x => x.Id))
+                {
+                    // نعرض فقط العناصر التي ما زالت مملوكة ولها وزن متبقي أكبر من صفر
+                    if (item.Status == "Owned" && item.RemainingGrams > 0)
+                    {
+                        <tr>
+                            <td>@item.Id</td>
+                            <td>@item.GoldType</td>
+                            <td class="fw-bold">@item.RemainingGrams g</td>
+                            <td>@item.EffectiveCost.ToString("N0")</td>
+                            <td>@item.CurrentValue.ToString("N0")</td>
+                            <td dir="ltr" class="@(item.UnrealizedProfit >= 0 ? "text-success fw-bold" : "text-danger fw-bold")">
+                                @item.UnrealizedProfit.ToString("N0")
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="2" class="text-end">الإجماليات (Totals):</td>
+                    <td>@Model.TotalOwnedGrams g</td>
+                    <td>@Model.TotalInvestedHeld.ToString("N0")</td>
+                    <td>@Model.CurrentPortfolioValue.ToString("N0")</td>
+                    <td dir="ltr" class="@((Model.CurrentPortfolioValue - Model.TotalInvestedHeld) >= 0 ? "text-success" : "text-danger")">
+                        @((Model.CurrentPortfolioValue - Model.TotalInvestedHeld).ToString("N0"))
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="AddTransaction" method="post">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">تسجيل عملية شراء</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label>العيار</label>
+                        <select name="goldType" class="form-select">
+                            <option value="24">24</option>
+                            <option value="21">21</option>
+                        </select>
+                    </div>
+                    <div class="mb-2"><label>الوزن (جرام)</label><input name="grams" type="number" step="0.01" class="form-control" required></div>
+                    <div class="mb-2"><label>سعر الجرام عند الشراء</label><input name="pricePerGram" type="number" step="0.01" class="form-control" required></div>
+                    <div class="mb-2"><label>التاريخ</label><input name="date" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="sellModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="SellGold" method="post">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title text-dark">💰 بيع ذهب</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2">
+                        <small>اختر القطعة التي تريد بيع جزء منها أو كلها</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اختر القطعة (ID - الوزن المتاح)</label>
+                        <select name="parentId" class="form-select" required>
+                            <option value="">-- اختر من القائمة --</option>
+                            @foreach (var item in Model.Transactions.Where(x => x.Status == "Owned" && x.RemainingGrams > 0))
+                            {
+                                <option value="@item.Id">
+                                    ID: @item.Id | عيار @item.GoldType | متاح: @item.RemainingGrams جرام
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">الوزن المراد بيعه (جرام)</label>
+                        <input name="grams" type="number" step="0.01" class="form-control" placeholder="مثال: 5.0" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">سعر البيع (للجرام الواحد)</label>
+                        <input name="pricePerGram" type="number" step="0.01" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">تاريخ البيع</label>
+                        <input name="date" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning fw-bold">تأكيد البيع</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

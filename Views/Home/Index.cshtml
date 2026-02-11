@@ -1,0 +1,27 @@
+﻿@{
+    ViewData["Title"] = "الدخول";
+}
+
+<div class="card shadow-sm mx-auto" style="max-width: 500px; margin-top: 100px;">
+    <div class="card-header bg-warning text-dark text-center">
+        <h3>🔑 تسجيل الدخول للمحفظة</h3>
+    </div>
+    <div class="card-body">
+        <form asp-action="LoginAndUpload" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">سعر الذهب عيار 24 (اليوم)</label>
+                <input type="number" name="price24" class="form-control" required step="0.01" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">سعر الذهب عيار 21 (اليوم)</label>
+                <input type="number" name="price21" class="form-control" required step="0.01" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">ملف البيانات (CSV)</label>
+                <input type="file" name="file" class="form-control" accept=".csv" />
+                <small class="text-muted">اتركه فارغاً لبدء محفظة جديدة</small>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">دخول وعرض المحفظة</button>
+        </form>
+    </div>
+</div>
